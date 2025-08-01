@@ -1,39 +1,43 @@
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
+import { useAuth } from './contexts/AuthContext';
+import Login from './pages/Login';
+import Register from './pages/Register';
 import './App.css';
-
-// 简单的测试组件
-const Login = () => (
-  <div className="min-h-screen flex items-center justify-center bg-blue-50">
-    <div className="text-2xl text-blue-600">
-      🔐 登录页面 - 路由工作正常！
-    </div>
-  </div>
-);
-
-const Register = () => (
-  <div className="min-h-screen flex items-center justify-center bg-green-50">
-    <div className="text-2xl text-green-600">
-      📝 注册页面 - 路由工作正常！
-    </div>
-  </div>
-);
 
 const Dashboard = () => (
   <div className="min-h-screen flex items-center justify-center bg-purple-50">
     <div className="text-2xl text-purple-600">
-      🎉 Dashboard页面 - 路由工作正常！
+      🎉 登录成功！欢迎使用推荐系统
+      <div className="text-sm mt-4 text-gray-600">
+        这里将来会显示用户Dashboard
+      </div>
     </div>
   </div>
 );
 
 const App: React.FC = () => {
+  const { isAuthenticated, isLoading } = useAuth();
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-lg">加载中...</div>
+      </div>
+    );
+  }
+
   return (
     <div className="App">
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
-        <Route path="/dashboard" element={<Dashboard />} />
+        <Route 
+          path="/dashboard" 
+          element={
+            isAuthenticated ? <Dashboard /> : <Navigate to="/login" replace />
+          } 
+        />
         <Route path="/" element={<Navigate to="/login" replace />} />
       </Routes>
     </div>
