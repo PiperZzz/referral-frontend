@@ -12,7 +12,7 @@ import {
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import type { UploadFile } from 'antd/es/upload/interface';
-import { UserApiService, UserApiUtils, type UserProfileDto as UserProfileType, type CandidateResponseDto as Candidate } from '../services/userApi';
+import { UserApiService, UserApiUtils, type UserProfileDto as UserProfileType, type CandidateResponseDto as Candidate, type CandidateCreateDto } from '../services/userApi';
 import { useAuth } from '../contexts/AuthContext';
 
 const { Title, Text } = Typography;
@@ -72,9 +72,7 @@ const UserProfile: React.FC = () => {
   const handleProfileEdit = () => {
     if (profile) {
       editForm.setFieldsValue({
-        name: profile.name,
-        wechatId: profile.wechatId,
-        phoneNumber: profile.phoneNumber
+        wechatId: profile.wechatId
       });
       setEditModalVisible(true);
     }
@@ -99,15 +97,18 @@ const UserProfile: React.FC = () => {
     try {
       setSubmitLoading(true);
       
-      const formData = new FormData();
-      formData.append('candidateName', values.candidateName);
-      formData.append('candidateWechat', values.candidateWechat);
-      
-      if (fileList.length > 0 && fileList[0].originFileObj) {
-        formData.append('resume', fileList[0].originFileObj);
-      }
+      const candidateData: CandidateCreateDto = {
+        candidateName: values.candidateName,
+        candidateWechat: values.candidateWechat
+      };
 
-      await UserApiService.createCandidate(formData);
+      // Get the file if uploaded
+      const resumeFile = fileList.length > 0 && fileList[0].originFileObj 
+        ? fileList[0].originFileObj as File 
+        : undefined;
+
+      await UserApiService.createCandidate(candidateData, resumeFile);
+
       message.success('New referral submitted successfully');
       setNewReferralModalVisible(false);
       referralForm.resetFields();
@@ -280,15 +281,6 @@ const UserProfile: React.FC = () => {
                   {profile?.wechatId || 'Not set'}
                 </Text>
               </div>
-              
-              <div>
-                <Text className="text-sm text-gray-700 font-normal block mb-1">
-                  Phone Number:
-                </Text>
-                <Text className="text-base text-gray-900">
-                  {profile?.phoneNumber || 'Not set'}
-                </Text>
-              </div>
             </div>
           </div>
         </div>
@@ -346,29 +338,8 @@ const UserProfile: React.FC = () => {
           className="mt-6"
         >
           <Form.Item
-            name="name"
-            label="User Name"
-            rules={[{ required: true, message: 'Please enter your name' }]}
-          >
-            <Input
-              className="h-10 border-gray-300 rounded-none border-2"
-              style={{ borderRadius: 0 }}
-            />
-          </Form.Item>
-
-          <Form.Item
             name="wechatId"
             label="WeChat ID"
-          >
-            <Input
-              className="h-10 border-gray-300 rounded-none border-2"
-              style={{ borderRadius: 0 }}
-            />
-          </Form.Item>
-
-          <Form.Item
-            name="phoneNumber"
-            label="Phone Number"
           >
             <Input
               className="h-10 border-gray-300 rounded-none border-2"
