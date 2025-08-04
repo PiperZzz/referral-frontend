@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { authAPI, LoginResponseData } from '../services/api';
+import { authAPI, LoginResponseData, UserRegistrationData } from '../services/api';
 import { message } from 'antd';
 
 interface User {
@@ -19,12 +19,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<boolean>;
   logout: () => void;
-  register: (userData: {
-    email: string;
-    password: string;
-    wechatId?: string;
-    referrerWechatId?: string;
-  }) => Promise<boolean>;
+  register: (userData: UserRegistrationData) => Promise<boolean>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -52,14 +47,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     const checkAuthStatus = async () => {
       if (token) {
         try {
+          console.log('🔍 检查认证状态...');
           const response = await authAPI.checkStatus();
+          
           if (response.success && response.user) {
+            console.log('✅ 认证状态有效:', response.user);
             setUser(response.user);
             setIsLoading(false);
             return;
           }
         } catch (error) {
-          console.error('Auth check failed:', error);
+          console.error('❌ 认证状态检查失败:', error);
           // 清除无效的token
           localStorage.removeItem('authToken');
           localStorage.removeItem('userInfo');
@@ -77,10 +75,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const login = async (email: string, password: string): Promise<boolean> => {
     try {
       setIsLoading(true);
+      console.log('🔐 尝试登录:', email);
+      
       const response = await authAPI.login({ email, password });
+      console.log('📡 登录API响应:', response);
       
       if (response.success && response.data) {
-        const { token: authToken, user: userData, primaryRole: userRole } = response.data as LoginResponseData;
+        const loginData = response.data as LoginResponseData;
+        const { token: authToken, user: userData, primaryRole: userRole } = loginData;
+        
+        console.log('✅ 登录成功:', { userData, userRole });
         
         // 保存到localStorage
         localStorage.setItem('authToken', authToken);
@@ -92,14 +96,47 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         setUser(userData);
         setPrimaryRole(userRole);
         
-        message.success('登录成功！');
+        message.success('Login successful!');
         return true;
       } else {
-        message.error(response.message || '登录失败');
+        console.warn('⚠️ 登录失败:', response.message);
+        message.error(response.message || 'Login failed');
         return false;
       }
     } catch (error: any) {
-      const errorMessage = error.response?.data?.message || '登录失败，请检查网络连接';
+      console.error('❌ 登录错误:', error);
+      
+      // 处理后端API的错误响应格式
+      let errorMessage = 'Login failed, please check your network connection';
+      
+      if (error.response?.data) {
+        const errorData = error.response.data;
+        
+        // 如果后端返回了具体的错误消息
+        if (errorData.message) {
+          errorMessage = errorData.message;
+        }
+        
+        // 如果有验证错误
+        if (errorData.errors) {
+          const firstError = Object.values(errorData.errors)[0] as string;
+          errorMessage = firstError || errorMessage;
+        }
+        
+        // 处理特定的HTTP状态码
+        switch (error.response.status) {
+          case 401:
+            errorMessage = 'Invalid email or password';
+            break;
+          case 403:
+            errorMessage = 'Account is not activated or is disabled';
+            break;
+          case 500:
+            errorMessage = 'Server error, please try again later';
+            break;
+        }
+      }
+      
       message.error(errorMessage);
       return false;
     } finally {
@@ -107,35 +144,57 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  const register = async (userData: {
-    email: string;
-    password: string;
-    wechatId?: string;
-    referrerWechatId?: string;
-  }): Promise<boolean> => {
+  const register = async (userData: UserRegistrationData): Promise<boolean> => {
     try {
       setIsLoading(true);
+      console.log('📝 尝试注册:', userData.email);
+      
       const response = await authAPI.register(userData);
+      console.log('📡 注册API响应:', response);
       
       if (response.success) {
-        message.success(response.message || '注册成功！请等待管理员激活账号。');
+        message.success(response.message || 'Registration successful! Please wait for administrator to activate your account.');
         return true;
       } else {
-        message.error(response.message || '注册失败');
+        message.error(response.message || 'Registration failed');
         return false;
       }
     } catch (error: any) {
-      const errorMessage = error.response?.data?.message || '注册失败，请检查网络连接';
-      message.error(errorMessage);
+      console.error('❌ 注册错误:', error);
       
-      // 处理验证错误
-      if (error.response?.data?.errors) {
-        const errors = error.response.data.errors;
-        Object.values(errors).forEach((msg) => {
-          message.error(msg as string);
-        });
+      // 处理注册错误
+      let errorMessage = 'Registration failed, please check your network connection';
+      
+      if (error.response?.data) {
+        const errorData = error.response.data;
+        
+        if (errorData.message) {
+          errorMessage = errorData.message;
+        }
+        
+        // 处理验证错误
+        if (errorData.errors) {
+          Object.values(errorData.errors).forEach((msg) => {
+            message.error(msg as string);
+          });
+          return false;
+        }
+        
+        // 处理特定的HTTP状态码
+        switch (error.response.status) {
+          case 400:
+            errorMessage = 'Invalid registration data';
+            break;
+          case 409:
+            errorMessage = 'Email already exists';
+            break;
+          case 500:
+            errorMessage = 'Server error, please try again later';
+            break;
+        }
       }
       
+      message.error(errorMessage);
       return false;
     } finally {
       setIsLoading(false);
@@ -144,9 +203,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const logout = async () => {
     try {
+      console.log('🚪 尝试登出...');
       await authAPI.logout();
+      console.log('✅ 登出API调用成功');
     } catch (error) {
-      console.error('Logout error:', error);
+      console.error('❌ 登出API错误:', error);
+      // 即使API调用失败，也要清除本地状态
     } finally {
       // 清除本地存储
       localStorage.removeItem('authToken');
@@ -158,7 +220,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setUser(null);
       setPrimaryRole(null);
       
-      message.success('已退出登录');
+      message.success('Logged out successfully');
+      console.log('🧹 本地认证状态已清除');
     }
   };
 

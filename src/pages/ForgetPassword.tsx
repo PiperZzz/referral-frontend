@@ -1,50 +1,44 @@
 import React, { useState } from 'react';
-import { Form, Input, Button, Typography, Space, message } from 'antd';
-import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
+import { Form, Input, Button, Typography, Space, message, Modal } from 'antd';
+import { Link } from 'react-router-dom';
+import { authAPI } from '../services/api';
 
-const { Title, Text } = Typography;
+const { Title } = Typography;
 
-interface LoginFormData {
+interface ForgetPasswordFormData {
   email: string;
-  password: string;
 }
 
-const Login: React.FC = () => {
+const ForgetPassword: React.FC = () => {
   const [form] = Form.useForm();
-  const navigate = useNavigate();
-  const { login, isLoading } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isModalVisible, setIsModalVisible] = useState(false);
+  const [resetEmail, setResetEmail] = useState('');
 
-  const onFinish = async (values: LoginFormData) => {
+  const onFinish = async (values: ForgetPasswordFormData) => {
     setIsSubmitting(true);
     
     try {
-      const success = await login(values.email, values.password);
+      const response = await authAPI.forgetPassword(values.email);
       
-      if (success) {
-        // Login成功后根据用户角色跳转到相应页面
-        const primaryRole = localStorage.getItem('primaryRole');
-        
-        switch (primaryRole) {
-          case 'MASTER':
-            navigate('/master/dashboard');
-            break;
-          case 'ADMIN':
-            navigate('/admin/dashboard');
-            break;
-          case 'USER':
-          default:
-            navigate('/user/profile');
-            break;
-        }
+      if (response.success) {
+        setResetEmail(values.email);
+        setIsModalVisible(true);
+        form.resetFields();
+      } else {
+        message.error(response.message || 'Failed to send reset email');
       }
-    } catch (error) {
-      console.error('Login error:', error);
-      message.error('登录过程中发生错误');
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.message || 'Failed to send reset email';
+      message.error(errorMessage);
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleModalClose = () => {
+    setIsModalVisible(false);
+    setResetEmail('');
   };
 
   return (
@@ -53,10 +47,10 @@ const Login: React.FC = () => {
       <div className="absolute top-6 right-6">
         <Space size={16}>
           <Link 
-            to="/register"
+            to="/login"
             className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 transition-colors"
           >
-            Signup
+            Login
           </Link>
           <Link 
             to="/help"
@@ -80,16 +74,16 @@ const Login: React.FC = () => {
           </Title>
         </div>
 
-        {/* Login Form */}
+        {/* Forget Password Form */}
         <Form
           form={form}
-          name="login"
+          name="forgetPassword"
           onFinish={onFinish}
           layout="vertical"
           autoComplete="off"
           className="space-y-6"
         >
-          {/* Email Field (Changed from Username) */}
+          {/* Email Field */}
           <Form.Item
             name="email"
             label={
@@ -101,32 +95,9 @@ const Login: React.FC = () => {
               { required: true, message: 'Please enter your email' },
               { type: 'email', message: 'Please enter a valid email' },
             ]}
-            className="mb-6"
-          >
-            <Input
-              placeholder=""
-              className="h-12 border-gray-300 rounded-none border-2 focus:border-gray-400 hover:border-gray-400"
-              style={{
-                borderRadius: 0,
-                boxShadow: 'none',
-              }}
-            />
-          </Form.Item>
-
-          {/* Password Field */}
-          <Form.Item
-            name="password"
-            label={
-              <span className="text-sm text-gray-700 font-normal">
-                Password:
-              </span>
-            }
-            rules={[
-              { required: true, message: 'Please enter your password' },
-            ]}
             className="mb-8"
           >
-            <Input.Password
+            <Input
               placeholder=""
               className="h-12 border-gray-300 rounded-none border-2 focus:border-gray-400 hover:border-gray-400"
               style={{
@@ -141,17 +112,17 @@ const Login: React.FC = () => {
             <Button
               type="default"
               htmlType="submit"
-              loading={isSubmitting || isLoading}
+              loading={isSubmitting}
               className="h-12 px-8 border-2 border-gray-300 rounded-none bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400"
               style={{
                 borderRadius: 0,
                 fontWeight: 'normal',
               }}
             >
-              {isSubmitting ? 'Logging in...' : 'Login'}
+              {isSubmitting ? 'Sending...' : 'Submit'}
             </Button>
             
-            <Link to="/reset-password">
+            <Link to="/login">
               <Button
                 type="default"
                 className="h-12 px-8 border-2 border-gray-300 rounded-none bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400"
@@ -160,14 +131,45 @@ const Login: React.FC = () => {
                   fontWeight: 'normal',
                 }}
               >
-                Forget Password
+                Cancel
               </Button>
             </Link>
           </div>
         </Form>
+
+        {/* Success Modal */}
+        <Modal
+          title="Reset Email Sent"
+          open={isModalVisible}
+          onCancel={handleModalClose}
+          footer={[
+            <Button 
+              key="close" 
+              type="default"
+              onClick={handleModalClose}
+              className="h-10 px-6 border-2 border-gray-300 rounded-none bg-white text-gray-700 hover:bg-gray-50"
+              style={{ borderRadius: 0 }}
+            >
+              Close
+            </Button>
+          ]}
+          centered
+        >
+          <div className="py-4">
+            <p className="text-gray-700 mb-4">
+              A password reset link has been sent to your email address.
+            </p>
+            <p className="font-medium text-gray-900 mb-4">
+              {resetEmail}
+            </p>
+            <p className="text-gray-600 text-sm">
+              Please check your email and click the link to reset your password.
+            </p>
+          </div>
+        </Modal>
       </div>
     </div>
   );
 };
 
-export default Login;
+export default ForgetPassword;
