@@ -23,7 +23,7 @@ const Login: React.FC = () => {
       const success = await login(values.email, values.password);
       
       if (success) {
-        // Login成功后根据用户角色跳转到相应页面
+        // Login successful, routing is handled by AuthContext and role-based redirect
         const primaryRole = localStorage.getItem('primaryRole');
         
         switch (primaryRole) {
@@ -41,7 +41,7 @@ const Login: React.FC = () => {
       }
     } catch (error) {
       console.error('Login error:', error);
-      message.error('登录过程中发生错误');
+      message.error('Login process failed');
     } finally {
       setIsSubmitting(false);
     }
@@ -151,7 +151,7 @@ const Login: React.FC = () => {
               {isSubmitting ? 'Logging in...' : 'Login'}
             </Button>
             
-            <Link to="/reset-password">
+            <Link to="/forget-password">
               <Button
                 type="default"
                 className="h-12 px-8 border-2 border-gray-300 rounded-none bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400"

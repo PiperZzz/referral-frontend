@@ -47,18 +47,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     const checkAuthStatus = async () => {
       if (token) {
         try {
-          console.log('🔍 检查认证状态...');
+          console.log('🔍 Checking authentication status...');
           const response = await authAPI.checkStatus();
           
           if (response.success && response.user) {
-            console.log('✅ 认证状态有效:', response.user);
+            console.log('✅ Authentication status valid:', response.user);
             setUser(response.user);
             setIsLoading(false);
             return;
           }
         } catch (error) {
-          console.error('❌ 认证状态检查失败:', error);
-          // 清除无效的token
+          console.error('❌ Authentication status check failed:', error);
+          // Clear invalid token
           localStorage.removeItem('authToken');
           localStorage.removeItem('userInfo');
           localStorage.removeItem('primaryRole');
@@ -75,16 +75,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const login = async (email: string, password: string): Promise<boolean> => {
     try {
       setIsLoading(true);
-      console.log('🔐 尝试登录:', email);
+      console.log('🔐 Attempting login:', email);
       
       const response = await authAPI.login({ email, password });
-      console.log('📡 登录API响应:', response);
+      console.log('📡 Login API response:', response);
       
       if (response.success && response.data) {
         const loginData = response.data as LoginResponseData;
         const { token: authToken, user: userData, primaryRole: userRole } = loginData;
         
-        console.log('✅ 登录成功:', { userData, userRole });
+        console.log('✅ Login successful:', { userData, userRole });
         
         // 保存到localStorage
         localStorage.setItem('authToken', authToken);
@@ -99,12 +99,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         message.success('Login successful!');
         return true;
       } else {
-        console.warn('⚠️ 登录失败:', response.message);
+        console.warn('⚠️ Login failed:', response.message);
         message.error(response.message || 'Login failed');
         return false;
       }
     } catch (error: any) {
-      console.error('❌ 登录错误:', error);
+      console.error('❌ Login error:', error);
       
       // 处理后端API的错误响应格式
       let errorMessage = 'Login failed, please check your network connection';
@@ -147,10 +147,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const register = async (userData: UserRegistrationData): Promise<boolean> => {
     try {
       setIsLoading(true);
-      console.log('📝 尝试注册:', userData.email);
+      console.log('📝 Attempting registration:', userData.email);
       
       const response = await authAPI.register(userData);
-      console.log('📡 注册API响应:', response);
+      console.log('📡 Registration API response:', response);
       
       if (response.success) {
         message.success(response.message || 'Registration successful! Please wait for administrator to activate your account.');
@@ -160,7 +160,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         return false;
       }
     } catch (error: any) {
-      console.error('❌ 注册错误:', error);
+      console.error('❌ Registration error:', error);
       
       // 处理注册错误
       let errorMessage = 'Registration failed, please check your network connection';
@@ -203,25 +203,25 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const logout = async () => {
     try {
-      console.log('🚪 尝试登出...');
+      console.log('🚪 Attempting logout...');
       await authAPI.logout();
-      console.log('✅ 登出API调用成功');
+      console.log('✅ Logout API call successful');
     } catch (error) {
-      console.error('❌ 登出API错误:', error);
-      // 即使API调用失败，也要清除本地状态
+      console.error('❌ Logout API error:', error);
+      // Even if API call fails, clear local state
     } finally {
-      // 清除本地存储
+      // Clear local storage
       localStorage.removeItem('authToken');
       localStorage.removeItem('userInfo');
       localStorage.removeItem('primaryRole');
       
-      // 重置状态
+      // Reset state
       setToken(null);
       setUser(null);
       setPrimaryRole(null);
       
       message.success('Logged out successfully');
-      console.log('🧹 本地认证状态已清除');
+      console.log('🧹 Local authentication state cleared');
     }
   };
 

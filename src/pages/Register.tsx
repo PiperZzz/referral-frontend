@@ -1,10 +1,9 @@
 import React, { useState } from 'react';
-import { Form, Input, Button, Card, Typography, Space, Divider } from 'antd';
-import { UserOutlined, LockOutlined, MailOutlined, WechatOutlined, PhoneOutlined } from '@ant-design/icons';
-import { Link, useNavigate } from 'react-router-dom';
+import { Form, Input, Button, Typography, Space, message, Modal } from 'antd';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
-const { Title, Text } = Typography;
+const { Title } = Typography;
 
 interface RegisterFormData {
   email: string;
@@ -16,181 +15,262 @@ interface RegisterFormData {
 
 const Register: React.FC = () => {
   const [form] = Form.useForm();
-  const navigate = useNavigate();
   const { register, isLoading } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isModalVisible, setIsModalVisible] = useState(false);
 
   const onFinish = async (values: RegisterFormData) => {
     setIsSubmitting(true);
     
-    const success = await register({
-      email: values.email,
-      password: values.password,
-      wechatId: values.wechatId,
-      referrerWechatId: values.referrerWechatId,
-    });
-
-    if (success) {
-      // 注册成功，跳转到登录页
-      setTimeout(() => {
-        navigate('/login');
-      }, 2000);
+    try {
+      const { confirmPassword, ...registerData } = values;
+      const success = await register(registerData);
+      
+      if (success) {
+        setIsModalVisible(true);
+        form.resetFields();
+      }
+    } catch (error) {
+      console.error('Register error:', error);
+      message.error('Registration process failed');
+    } finally {
+      setIsSubmitting(false);
     }
-    
-    setIsSubmitting(false);
+  };
+
+  const handleModalClose = () => {
+    setIsModalVisible(false);
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
-        {/* 品牌Logo和标题 */}
-        <div className="text-center mb-8 animate-fade-in">
-          <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-2xl mx-auto mb-4 flex items-center justify-center">
-            <UserOutlined className="text-white text-2xl" />
-          </div>
-          <Title level={2} className="text-gray-800 mb-2">
-            创建账号
+    <div className="min-h-screen bg-white flex items-center justify-center">
+      {/* Top right navigation */}
+      <div className="absolute top-6 right-6">
+        <Space size={16}>
+          <Link 
+            to="/login"
+            className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 transition-colors"
+          >
+            Login
+          </Link>
+          <Link 
+            to="/help"
+            className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 transition-colors"
+          >
+            Help
+          </Link>
+        </Space>
+      </div>
+
+      {/* Main content */}
+      <div className="w-full max-w-md mx-auto">
+        {/* Title */}
+        <div className="text-center mb-12">
+          <Title 
+            level={1} 
+            className="text-4xl font-normal text-gray-900 mb-0"
+            style={{ fontWeight: 400, fontSize: '2.5rem', marginBottom: 0 }}
+          >
+            MOYI Referral
           </Title>
-          <Text className="text-gray-600">
-            加入我们的推荐系统，开始您的推荐之旅
-          </Text>
         </div>
 
-        {/* 注册表单卡片 */}
-        <Card 
-          className="shadow-elegant-lg border-0 animate-slide-in"
-          bodyStyle={{ padding: '32px' }}
-        >
+        {/* Register Form - Following the screenshot style */}
+        <div className="border-2 border-gray-800 p-8" style={{ borderRadius: 0 }}>
+          <div className="border-b-2 border-gray-800 pb-2 mb-6">
+            <Title level={4} className="mb-0 text-gray-900 font-normal">
+              Sign up
+            </Title>
+          </div>
+
           <Form
             form={form}
             name="register"
             onFinish={onFinish}
             layout="vertical"
-            size="large"
             autoComplete="off"
+            className="space-y-4"
           >
-            {/* 邮箱 */}
+            {/* Email Field - Required */}
             <Form.Item
               name="email"
-              label={<span className="text-gray-700 font-medium">邮箱地址</span>}
+              label={
+                <span className="text-sm text-gray-700 font-normal">
+                  Email
+                </span>
+              }
               rules={[
-                { required: true, message: '请输入邮箱地址' },
-                { type: 'email', message: '请输入有效的邮箱地址' },
+                { required: true, message: 'Please enter your email' },
+                { type: 'email', message: 'Please enter a valid email' },
               ]}
+              className="mb-4"
             >
               <Input
-                prefix={<MailOutlined className="text-gray-400" />}
-                placeholder="请输入您的邮箱"
-                className="rounded-lg border-gray-300 hover:border-blue-400 focus:border-blue-500"
+                placeholder=""
+                className="h-10 border-gray-800 rounded-none border-2 focus:border-gray-800 hover:border-gray-800"
+                style={{
+                  borderRadius: 0,
+                  boxShadow: 'none',
+                }}
               />
             </Form.Item>
 
-            {/* 密码 */}
+            {/* Password Field - Required */}
             <Form.Item
               name="password"
-              label={<span className="text-gray-700 font-medium">密码</span>}
+              label={
+                <span className="text-sm text-gray-700 font-normal">
+                  Password
+                </span>
+              }
               rules={[
-                { required: true, message: '请输入密码' },
-                { min: 6, message: '密码长度不能少于6位' },
-                { max: 20, message: '密码长度不能超过20位' },
+                { required: true, message: 'Please enter your password' },
+                { min: 6, message: 'Password must be at least 6 characters' },
               ]}
+              className="mb-4"
             >
               <Input.Password
-                prefix={<LockOutlined className="text-gray-400" />}
-                placeholder="请输入密码（6-20位）"
-                className="rounded-lg border-gray-300 hover:border-blue-400 focus:border-blue-500"
+                placeholder=""
+                className="h-10 border-gray-800 rounded-none border-2 focus:border-gray-800 hover:border-gray-800"
+                style={{
+                  borderRadius: 0,
+                  boxShadow: 'none',
+                }}
               />
             </Form.Item>
 
-            {/* 确认密码 */}
+            {/* Confirm Password Field - Required */}
             <Form.Item
               name="confirmPassword"
-              label={<span className="text-gray-700 font-medium">确认密码</span>}
+              label={
+                <span className="text-sm text-gray-700 font-normal">
+                  Confirm Password
+                </span>
+              }
               dependencies={['password']}
               rules={[
-                { required: true, message: '请确认密码' },
+                { required: true, message: 'Please confirm your password' },
                 ({ getFieldValue }) => ({
                   validator(_, value) {
                     if (!value || getFieldValue('password') === value) {
                       return Promise.resolve();
                     }
-                    return Promise.reject(new Error('两次输入的密码不一致'));
+                    return Promise.reject(new Error('Passwords do not match'));
                   },
                 }),
               ]}
+              className="mb-4"
             >
               <Input.Password
-                prefix={<LockOutlined className="text-gray-400" />}
-                placeholder="请再次输入密码"
-                className="rounded-lg border-gray-300 hover:border-blue-400 focus:border-blue-500"
+                placeholder=""
+                className="h-10 border-gray-800 rounded-none border-2 focus:border-gray-800 hover:border-gray-800"
+                style={{
+                  borderRadius: 0,
+                  boxShadow: 'none',
+                }}
               />
             </Form.Item>
 
-            <Divider className="my-6">
-              <span className="text-gray-500 text-sm">可选信息</span>
-            </Divider>
-
-            {/* 微信号 */}
+            {/* WeChat Field - Optional */}
             <Form.Item
               name="wechatId"
-              label={<span className="text-gray-700 font-medium">微信号</span>}
+              label={
+                <span className="text-sm text-gray-700 font-normal">
+                  WeChat
+                </span>
+              }
+              className="mb-4"
             >
               <Input
-                prefix={<WechatOutlined className="text-gray-400" />}
-                placeholder="请输入您的微信号（可选）"
-                className="rounded-lg border-gray-300 hover:border-blue-400 focus:border-blue-500"
+                placeholder=""
+                className="h-10 border-gray-800 rounded-none border-2 focus:border-gray-800 hover:border-gray-800"
+                style={{
+                  borderRadius: 0,
+                  boxShadow: 'none',
+                }}
               />
             </Form.Item>
 
-            {/* 推荐人微信号 */}
+            {/* Phone Number Field - Optional */}
             <Form.Item
-              name="referrerWechatId"
-              label={<span className="text-gray-700 font-medium">推荐人微信号</span>}
+              name="phoneNumber"
+              label={
+                <span className="text-sm text-gray-700 font-normal">
+                  Phone number
+                </span>
+              }
+              className="mb-6"
             >
               <Input
-                prefix={<UserOutlined className="text-gray-400" />}
-                placeholder="请输入推荐人微信号（可选）"
-                className="rounded-lg border-gray-300 hover:border-blue-400 focus:border-blue-500"
+                placeholder=""
+                className="h-10 border-gray-800 rounded-none border-2 focus:border-gray-800 hover:border-gray-800"
+                style={{
+                  borderRadius: 0,
+                  boxShadow: 'none',
+                }}
               />
             </Form.Item>
 
-            {/* 提交按钮 */}
-            <Form.Item className="mb-4">
+            {/* Action Buttons */}
+            <div className="flex justify-between pt-4">
               <Button
-                type="primary"
+                type="default"
                 htmlType="submit"
                 loading={isSubmitting || isLoading}
-                className="w-full h-12 rounded-lg bg-gradient-to-r from-blue-500 to-indigo-600 border-0 hover:from-blue-600 hover:to-indigo-700 text-white font-medium shadow-md hover:shadow-lg transition-all duration-200"
+                className="h-10 px-6 border-2 border-gray-800 rounded-none bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-800"
+                style={{
+                  borderRadius: 0,
+                  fontWeight: 'normal',
+                }}
               >
-                {isSubmitting ? '注册中...' : '立即注册'}
+                {isSubmitting ? 'Submitting...' : 'Submit'}
               </Button>
-            </Form.Item>
-
-            {/* 登录链接 */}
-            <div className="text-center">
-              <Text className="text-gray-600">
-                已有账号？{' '}
-                <Link 
-                  to="/login" 
-                  className="text-blue-500 hover:text-blue-600 font-medium transition-colors duration-200"
+              
+              <Link to="/login">
+                <Button
+                  type="default"
+                  className="h-10 px-6 border-2 border-gray-800 rounded-none bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-800"
+                  style={{
+                    borderRadius: 0,
+                    fontWeight: 'normal',
+                  }}
                 >
-                  立即登录
-                </Link>
-              </Text>
+                  Cancel
+                </Button>
+              </Link>
             </div>
           </Form>
-        </Card>
-
-        {/* 帮助提示 */}
-        <div className="text-center mt-6 animate-fade-in">
-          <Text className="text-gray-500 text-sm">
-            注册即表示您同意我们的{' '}
-            <a href="#" className="text-blue-500 hover:text-blue-600">服务条款</a>
-            {' '}和{' '}
-            <a href="#" className="text-blue-500 hover:text-blue-600">隐私政策</a>
-          </Text>
         </div>
       </div>
+
+      {/* Success Modal */}
+      <Modal
+        title="Registration Successful"
+        open={isModalVisible}
+        onCancel={handleModalClose}
+        footer={[
+          <Link key="login" to="/login">
+            <Button 
+              type="default"
+              onClick={handleModalClose}
+              className="h-10 px-6 border-2 border-gray-300 rounded-none bg-white text-gray-700 hover:bg-gray-50"
+              style={{ borderRadius: 0 }}
+            >
+              Login
+            </Button>
+          </Link>
+        ]}
+        centered
+      >
+        <div className="py-4">
+          <p className="text-gray-700 mb-4">
+            Your account has been created successfully.
+          </p>
+          <p className="text-gray-600 text-sm">
+            Please wait for an administrator to activate your account. You will receive an email notification once your account is activated.
+          </p>
+        </div>
+      </Modal>
     </div>
   );
 };
