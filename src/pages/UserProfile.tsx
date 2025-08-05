@@ -43,11 +43,12 @@ const UserProfile: React.FC = () => {
 
   const userRole = getUserRole();
 
-  // Load user data
+  // Load user data - centralized function to refresh all data
   const loadUserData = async () => {
     try {
       setLoading(true);
       
+      // Always fetch fresh data from API
       const [profileData, candidatesData] = await Promise.all([
         UserApiService.getUserProfile(),
         UserApiService.getUserCandidates(),
@@ -55,6 +56,8 @@ const UserProfile: React.FC = () => {
 
       setProfile(profileData);
       setCandidates(candidatesData);
+      
+      console.log('✅ Data refreshed:', { profileData, candidatesData });
       
     } catch (error: any) {
       console.error('Failed to load user data:', error);
@@ -64,6 +67,7 @@ const UserProfile: React.FC = () => {
     }
   };
 
+  // Refresh data when component mounts
   useEffect(() => {
     loadUserData();
   }, []);
@@ -98,7 +102,10 @@ const UserProfile: React.FC = () => {
       await UserApiService.updateUserProfile(values);
       message.success('Profile updated successfully');
       setEditModalVisible(false);
-      loadUserData();
+      
+      // 🔄 Refresh all data after profile update
+      await loadUserData();
+      
     } catch (error: any) {
       message.error('Failed to update profile: ' + error.message);
     } finally {
@@ -127,7 +134,9 @@ const UserProfile: React.FC = () => {
       setNewReferralModalVisible(false);
       referralForm.resetFields();
       setFileList([]);
-      loadUserData();
+      
+      // 🔄 Refresh all data after creating new candidate
+      await loadUserData();
       
     } catch (error: any) {
       message.error('Failed to submit referral: ' + error.message);
@@ -155,7 +164,10 @@ const UserProfile: React.FC = () => {
       // await UserApiService.updateCandidateStatus(selectedCandidate.id, values);
       message.success('Candidate status updated successfully');
       setStatusModalVisible(false);
-      loadUserData();
+      
+      // 🔄 Refresh all data after status update
+      await loadUserData();
+      
     } catch (error: any) {
       message.error('Failed to update status: ' + error.message);
     } finally {
@@ -250,10 +262,18 @@ const UserProfile: React.FC = () => {
                 Modal.confirm({
                   title: 'Delete Candidate',
                   content: 'Are you sure you want to delete this candidate?',
-                  onOk: () => {
-                    // Handle delete
-                    message.success('Candidate deleted successfully');
-                    loadUserData();
+                  onOk: async () => {
+                    try {
+                      // Handle delete API call
+                      // await UserApiService.deleteCandidate(record.id);
+                      message.success('Candidate deleted successfully');
+                      
+                      // 🔄 Refresh all data after deletion
+                      await loadUserData();
+                      
+                    } catch (error: any) {
+                      message.error('Failed to delete candidate: ' + error.message);
+                    }
                   }
                 });
               }}
