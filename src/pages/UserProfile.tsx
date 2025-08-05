@@ -165,15 +165,54 @@ const UserProfile: React.FC = () => {
     try {
       setSubmitLoading(true);
       
-      // Update basic info first
-      // await UserApiService.updateCandidate(selectedCandidate.id, {
-      //   candidateName: values.candidateName,
-      //   candidateWechat: values.candidateWechat
-      // });
+      // Update basic info using direct API call
+      const hasBasicChanges = 
+        values.candidateName !== selectedCandidate.candidateName ||
+        values.candidateWechat !== selectedCandidate.candidateWechat;
+      
+      if (hasBasicChanges) {
+        console.log('Updating candidate basic info:', {
+          candidateId: selectedCandidate.id,
+          candidateName: values.candidateName,
+          candidateWechat: values.candidateWechat
+        });
+        
+        // Use direct axios call to the API
+        const updateResponse = await fetch(`/api/candidates/${selectedCandidate.id}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+          },
+          body: JSON.stringify({
+            candidateName: values.candidateName,
+            candidateWechat: values.candidateWechat
+          })
+        });
+        
+        if (!updateResponse.ok) {
+          throw new Error('Failed to update candidate basic info');
+        }
+      }
       
       // Update resume if new file uploaded
       if (editFileList.length > 0 && editFileList[0].originFileObj) {
-        // await UserApiService.updateCandidateResume(selectedCandidate.id, editFileList[0].originFileObj as File);
+        console.log('Updating candidate resume for ID:', selectedCandidate.id);
+        
+        const formData = new FormData();
+        formData.append('resumeFile', editFileList[0].originFileObj);
+        
+        const resumeResponse = await fetch(`/api/candidates/${selectedCandidate.id}/resume`, {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+          },
+          body: formData
+        });
+        
+        if (!resumeResponse.ok) {
+          throw new Error('Failed to update candidate resume');
+        }
       }
       
       message.success('Candidate updated successfully');
@@ -183,6 +222,7 @@ const UserProfile: React.FC = () => {
       await loadUserData();
       
     } catch (error: any) {
+      console.error('Update candidate error:', error);
       message.error('Failed to update candidate: ' + error.message);
     } finally {
       setSubmitLoading(false);
