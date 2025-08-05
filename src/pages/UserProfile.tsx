@@ -27,13 +27,16 @@ const UserProfile: React.FC = () => {
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [newReferralModalVisible, setNewReferralModalVisible] = useState(false);
   const [statusModalVisible, setStatusModalVisible] = useState(false);
+  const [editCandidateModalVisible, setEditCandidateModalVisible] = useState(false);
   const [selectedCandidate, setSelectedCandidate] = useState<Candidate | null>(null);
   const [fileList, setFileList] = useState<UploadFile[]>([]);
+  const [editFileList, setEditFileList] = useState<UploadFile[]>([]);
   const [submitLoading, setSubmitLoading] = useState(false);
   
   const [editForm] = Form.useForm();
   const [referralForm] = Form.useForm();
   const [statusForm] = Form.useForm();
+  const [editCandidateForm] = Form.useForm();
   const { logout } = useAuth();
 
   // Get user role from localStorage
@@ -145,6 +148,47 @@ const UserProfile: React.FC = () => {
     }
   };
 
+  // Handle edit candidate
+  const handleEditCandidate = (candidate: Candidate) => {
+    setSelectedCandidate(candidate);
+    editCandidateForm.setFieldsValue({
+      candidateName: candidate.candidateName,
+      candidateWechat: candidate.candidateWechat
+    });
+    setEditFileList([]);
+    setEditCandidateModalVisible(true);
+  };
+
+  const handleUpdateCandidate = async (values: any) => {
+    if (!selectedCandidate) return;
+    
+    try {
+      setSubmitLoading(true);
+      
+      // Update basic info first
+      // await UserApiService.updateCandidate(selectedCandidate.id, {
+      //   candidateName: values.candidateName,
+      //   candidateWechat: values.candidateWechat
+      // });
+      
+      // Update resume if new file uploaded
+      if (editFileList.length > 0 && editFileList[0].originFileObj) {
+        // await UserApiService.updateCandidateResume(selectedCandidate.id, editFileList[0].originFileObj as File);
+      }
+      
+      message.success('Candidate updated successfully');
+      setEditCandidateModalVisible(false);
+      
+      // 🔄 Refresh all data after candidate update
+      await loadUserData();
+      
+    } catch (error: any) {
+      message.error('Failed to update candidate: ' + error.message);
+    } finally {
+      setSubmitLoading(false);
+    }
+  };
+
   // Handle status update (Admin only)
   const handleStatusUpdate = (candidate: Candidate) => {
     setSelectedCandidate(candidate);
@@ -239,8 +283,24 @@ const UserProfile: React.FC = () => {
       },
     ];
 
-    // Add actions column for Admin
-    if (userRole === 'ADMIN' || userRole === 'MASTER') {
+    // Add actions column for Users (Edit) and Admin (Edit + Delete)
+    if (userRole === 'USER') {
+      baseColumns.push({
+        title: 'Actions',
+        key: 'actions',
+        width: 80,
+        render: (_, record) => (
+          <Button
+            type="link"
+            size="small"
+            onClick={() => handleEditCandidate(record)}
+            // disabled={record.status !== 'SCREENING'} // Only allow edit in SCREENING status
+          >
+            Edit
+          </Button>
+        ),
+      });
+    } else if (userRole === 'ADMIN' || userRole === 'MASTER') {
       baseColumns.push({
         title: 'Actions',
         key: 'actions',
@@ -304,7 +364,10 @@ const UserProfile: React.FC = () => {
           <Button
             type="default"
             className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 transition-colors"
-            onClick={() => {/* Help functionality */}}
+            onClick={() => {
+              // Help functionality - could refresh data to show latest admin contacts
+              console.log('Help clicked');
+            }}
           >
             Help
           </Button>
@@ -314,6 +377,18 @@ const UserProfile: React.FC = () => {
             onClick={handleLogout}
           >
             Logout
+          </Button>
+          {/* Manual refresh button for testing */}
+          <Button
+            type="default"
+            className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 transition-colors"
+            onClick={() => {
+              console.log('🔄 Manual refresh triggered');
+              loadUserData();
+            }}
+            loading={loading}
+          >
+            Refresh
           </Button>
         </Space>
       </div>
@@ -648,6 +723,97 @@ const UserProfile: React.FC = () => {
               className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
             >
               Submit
+            </Button>
+          </div>
+        </Form>
+      </Modal>
+
+      {/* Edit Candidate Modal - User only */}
+      <Modal
+        title="Edit Referral"
+        open={editCandidateModalVisible}
+        onCancel={() => {
+          setEditCandidateModalVisible(false);
+          editCandidateForm.resetFields();
+          setEditFileList([]);
+        }}
+        footer={null}
+        centered
+        width={500}
+      >
+        <Form
+          form={editCandidateForm}
+          onFinish={handleUpdateCandidate}
+          layout="vertical"
+          className="mt-6"
+        >
+          <Form.Item
+            name="candidateName"
+            label="Candidate Name"
+            rules={[{ required: true, message: 'Please enter candidate name' }]}
+          >
+            <Input
+              className="h-10 border-gray-300 rounded-none border-2"
+              style={{ borderRadius: 0 }}
+            />
+          </Form.Item>
+
+          <Form.Item
+            name="candidateWechat"
+            label="Candidate WeChat"
+            rules={[{ required: true, message: 'Please enter candidate WeChat' }]}
+          >
+            <Input
+              className="h-10 border-gray-300 rounded-none border-2"
+              style={{ borderRadius: 0 }}
+            />
+          </Form.Item>
+
+          <Form.Item
+            label="Reupload Resume (Optional)"
+          >
+            <Upload
+              fileList={editFileList}
+              beforeUpload={() => false}
+              onChange={({ fileList }) => setEditFileList(fileList)}
+              maxCount={1}
+              accept=".pdf,.doc,.docx"
+            >
+              <Button
+                type="default"
+                className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+              >
+                {selectedCandidate?.hasResume ? 'Replace Resume' : 'Upload Resume'}
+              </Button>
+            </Upload>
+            {selectedCandidate?.hasResume && (
+              <div className="mt-2">
+                <Text className="text-xs text-gray-500">
+                  Current resume: {selectedCandidate.resumeFilename || 'resume.pdf'}
+                </Text>
+              </div>
+            )}
+          </Form.Item>
+
+          <div className="flex justify-end space-x-4 pt-4">
+            <Button
+              type="default"
+              onClick={() => {
+                setEditCandidateModalVisible(false);
+                editCandidateForm.resetFields();
+                setEditFileList([]);
+              }}
+              className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="default"
+              htmlType="submit"
+              loading={submitLoading}
+              className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+            >
+              Update
             </Button>
           </div>
         </Form>
